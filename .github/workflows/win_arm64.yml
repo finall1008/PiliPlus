@@ -1,0 +1,100 @@
+name: Build for Windows arm64
+
+on:
+  workflow_call:
+    inputs:
+      tag:
+        description: "tag"
+        required: false
+        default: ""
+        type: string
+  workflow_dispatch:
+
+jobs:
+  build-windows-arm64-app:
+    name: Release Windows arm64
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version-file: pubspec.yaml
+
+      - name: Apply Patch
+        shell: pwsh
+        run: lib/scripts/patch.ps1 windows
+        continue-on-error: true
+
+      - name: Add Inno Setup
+        run: choco install innosetup
+
+      - name: Add Chinese language file for Inno Setup
+        run: |
+          Copy-Item "windows/packaging/exe/ChineseSimplified.isl" "C:\Program Files (x86)\Inno Setup 6\Languages\ChineseSimplified.isl"
+        shell: pwsh
+
+      - name: Set and Extract version
+        shell: pwsh
+        run: lib/scripts/build.ps1
+
+      - name: Build Windows arm64
+        run: |
+          flutter build windows --target-platform windows-arm64 --release --dart-define-from-file=pili_release.json
+
+      - name: Package installer
+        shell: pwsh
+        run: |
+          $version = "${{ env.version }}"
+          $sourceDir = "build\windows\arm64\runner\Release"
+          $outputFilename = "PiliPlus_windows_${version}_arm64_setup"
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" `
+            "/DMyAppVersion=$version" `
+            "/DMySourceDir=$sourceDir" `
+            "/DMyOutputDir=." `
+            "/DMyOutputFilename=$outputFilename" `
+            "windows\packaging\exe\inno_setup_arm64.iss"
+
+      - name: Prepare Upload
+        run: |
+          mkdir -p Release/PiliPlus-Win
+          mkdir -p PiliPlus-Win-Setup
+          mv build/windows/arm64/runner/Release/* Release/PiliPlus-Win/
+          mv PiliPlus_windows_${{env.version}}_arm64_setup.exe PiliPlus-Win-Setup/PiliPlus_windows_${{env.version}}_arm64_setup.exe
+
+      - name: Compress
+        if: ${{ inputs.tag != '' }}
+        run: |
+          Compress-Archive -Path "Release/PiliPlus-Win" -DestinationPath "PiliPlus_windows_${{env.version}}_arm64_portable.zip"
+        shell: pwsh
+
+      - name: Release
+        if: ${{ inputs.tag != '' }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.tag }}
+          name: ${{ inputs.tag }}
+          files: |
+            PiliPlus_windows_*.zip
+            PiliPlus-Win-Setup/PiliPlus_windows_*.exe
+
+      - name: Upload windows file release
+        uses: actions/upload-artifact@v7
+        with:
+          archive: true
+          name: PiliPlus_windows_${{env.version}}_arm64_portable
+          path: Release
+
+      - name: Upload windows setup release
+        uses: actions/upload-artifact@v7
+        with:
+          archive: false
+          name: Windows-setup-arm64-release
+          path: PiliPlus-Win-Setup/PiliPlus_windows_*.exe
