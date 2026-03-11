@@ -19,7 +19,7 @@ on:
 jobs:
   build-windows-arm64-app:
     name: Release Windows arm64
-    runs-on: windows-latest
+    runs-on: windows-11-arm
     permissions:
       contents: write
     steps:
@@ -53,7 +53,7 @@ jobs:
 
       - name: Build Windows arm64
         run: |
-          flutter build windows --target-platform windows-arm64 --release --dart-define-from-file=pili_release.json
+          flutter build windows --release --dart-define-from-file=pili_release.json
 
       - name: Package installer
         shell: pwsh
