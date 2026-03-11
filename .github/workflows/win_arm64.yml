@@ -52,14 +52,17 @@ jobs:
       - name: Package installer
         shell: pwsh
         run: |
+          $workspace = $env:GITHUB_WORKSPACE
           $version = "${{ env.version }}"
-          $sourceDir = "build\windows\arm64\runner\Release"
+          $sourceDir = "$workspace\build\windows\arm64\runner\Release"
+          $iconFile = "$workspace\windows\runner\resources\app_icon.ico"
           $outputFilename = "PiliPlus_windows_${version}_arm64_setup"
           & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" `
             "/DMyAppVersion=$version" `
             "/DMySourceDir=$sourceDir" `
-            "/DMyOutputDir=." `
+            "/DMyOutputDir=$workspace" `
             "/DMyOutputFilename=$outputFilename" `
+            "/DMyIconFile=$iconFile" `
             "windows\packaging\exe\inno_setup_arm64.iss"
 
       - name: Prepare Upload
