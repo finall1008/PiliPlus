@@ -33,6 +33,7 @@ jobs:
         with:
           channel: stable
           flutter-version-file: pubspec.yaml
+          architecture: x64
 
       - name: Apply Patch
         shell: pwsh
